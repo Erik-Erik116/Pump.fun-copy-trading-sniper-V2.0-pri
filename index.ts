@@ -149,7 +149,7 @@ function handleStreamEvents(stream: ClientDuplexStream<SubscribeRequest, Subscri
 
 
 let isStopped = false;
-
+const boughtTokens: string[] = [];
 async function handleData(data: SubscribeUpdate, stream: ClientDuplexStream<SubscribeRequest, SubscribeUpdate>) {
 
 
@@ -194,6 +194,11 @@ async function handleData(data: SubscribeUpdate, stream: ClientDuplexStream<Subs
                     let solPumpfunBuyAmount = (Number(transaction.meta.postBalances[3]) - Number(transaction.meta.preBalances[3])) / (10 ** 9);
 
                     let mintAddress = transaction.meta.preTokenBalances[0].mint;
+                    // **Check if the token has already been bought**
+                    if (boughtTokens.includes(mintAddress)) {
+                        console.log(`Skipping buy. Already purchased token: ${mintAddress}`);
+                        return;
+                    }
                     console.log("solPumpfunBuyAmount=>", solPumpfunBuyAmount);
                     console.log("mintaddress=>", mintAddress);
 
@@ -248,6 +253,12 @@ async function handleData(data: SubscribeUpdate, stream: ClientDuplexStream<Subs
 
                         if (Number(tokenAccountInfo?.amount) !== 0) {
                             console.log("Token balance is updated successfully", '\n');
+
+
+
+                            // **Add token to the bought list**
+                            boughtTokens.push(mintAddress);
+                            console.log("Updated mintAddresses:", boughtTokens);
 
                             //start sell function
                             let buyPrice = Number(buySolAmount) / Number(tokenAccountInfo.amount);

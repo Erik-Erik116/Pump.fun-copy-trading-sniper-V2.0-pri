@@ -11,6 +11,7 @@ import { executeJitoTx } from "../../utils/jito";
 import { logger } from "../../utils";
 import { sellAllToken } from "../../utils/gatherrefer";
 import { closeAllTokenAccounts } from "../../utils/closeata";
+import { LOSS_DURARTION, PROFIT_DURATION } from "../../constants";
 
 dotenv.config()
 
@@ -46,6 +47,8 @@ async function sellToken(mint: PublicKey, buyPrice: number) {
     let price = await getSellPrice(mint);
 
     while (true) {
+        let lossCounter = 0;
+        let profitCounter = 0;
         try {
             price = await getSellPrice(mint);
             console.log("token price after buy==>", price);
@@ -53,18 +56,31 @@ async function sellToken(mint: PublicKey, buyPrice: number) {
             console.log("priceChange =====>", priceChange);
 
             logger.info(`Current price: ${price}, Buy price: ${buyPrice}, Price change: ${priceChange.toFixed(3)}%`);
-
             if (priceChange >= take_profit) {
                 console.log("Take profit condition met");
                 break;
             }
-            // if (priceChange <= -stop_loss) {
-            //     console.log("Stop loss condition met");
-            //     break;
-            // }
+            if (priceChange <= -stop_loss) {
+                console.log("Stop loss condition met");
+                break;
+            }
+            if (priceChange < 0) {
+                lossCounter++;
+            }
+            if (priceChange > 0) {
+                profitCounter++;
+            }
             // if (priceChange <= -skip_selling_if_lost_more_than) {
             //     console.log(`Skip selling, price drop exceeded threshold: ${skip_selling_if_lost_more_than}%`);
             //     return;
+            // }
+            if (lossCounter > LOSS_DURARTION) {
+                console.log("Token Price wont be rised, proceeding to sell")
+                break;
+            }
+            // if (profitCounter > PROFIT_DURATION) {
+            //     console.log("Price check duration exceeded, proceeding to sell to make little profit")
+            //     break;
             // }
             if (price_check_duration && Date.now() - startTime > price_check_duration) {
                 console.log("Price check duration exceeded, proceeding to sell");
@@ -158,18 +174,18 @@ const sell = async (mint: PublicKey) => {
                 versionedTx.sign([mainKp]);
                 console.log(await solanaConnection.simulateTransaction(versionedTx, { sigVerify: true }))
                 const jitoPromise = executeJitoTx([versionedTx], mainKp, 'processed', latestBlockhash);
-                // const sendTransactionPromise = solanaConnection.sendTransaction(
-                //     tx,
-                //     [mainKp],
-                //     { skipPreflight: true, preflightCommitment: 'processed' }
-                // );
+                const sendTransactionPromise = solanaConnection.sendTransaction(
+                    tx,
+                    [mainKp],
+                    { skipPreflight: true, preflightCommitment: 'processed' }
+                );
 
-                // // Run both promises in parallel
-                // const [txSig, jitoResult] = await Promise.all([sendTransactionPromise, jitoPromise]);
+                // Run both promises in parallel
+                const [txSig, jitoResult] = await Promise.all([sendTransactionPromise, jitoPromise]);
 
-                // if (jitoResult) {
-                //     return jitoResult
-                // }
+                if (jitoResult) {
+                    return jitoResult
+                }
 
             }
 
