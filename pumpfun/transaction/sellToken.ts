@@ -12,6 +12,7 @@ import { logger } from "../../utils";
 import { sellAllToken } from "../../utils/gatherrefer";
 import { closeAllTokenAccounts } from "../../utils/closeata";
 import { LOSS_DURARTION, PROFIT_DURATION } from "../../constants";
+import { sleep } from "../../utils/commonFunc";
 
 dotenv.config()
 
@@ -45,9 +46,9 @@ async function sellToken(mint: PublicKey, buyPrice: number) {
     let retries = 0;
     let startTime = Date.now();
     let price = await getSellPrice(mint);
-
     let lossCounter = 0;
     let profitCounter = 0;
+
     while (true) {
         try {
             price = await getSellPrice(mint);
@@ -62,19 +63,22 @@ async function sellToken(mint: PublicKey, buyPrice: number) {
             }
             if (priceChange <= -stop_loss) {
                 console.log("Stop loss condition met");
+                await sleep(5000);
                 break;
             }
             if (priceChange < 0) {
                 lossCounter++;
+                profitCounter = 0;
             }
             if (priceChange > 0) {
                 profitCounter++;
+                lossCounter = 0;
             }
             // if (priceChange <= -skip_selling_if_lost_more_than) {
             //     console.log(`Skip selling, price drop exceeded threshold: ${skip_selling_if_lost_more_than}%`);
             //     return;
             // }
-            if (lossCounter > LOSS_DURARTION) {
+            if (lossCounter * price_check_interval > LOSS_DURARTION) {
                 console.log("Token Price wont be rised, proceeding to sell")
                 break;
             }
@@ -125,10 +129,35 @@ const sell = async (mint: PublicKey) => {
         try {
             console.log("======================== Token Sell start =========================")
 
-            const tokenAccount = await getAssociatedTokenAddress(mint, mainKp.publicKey);
 
-            const tokenBalance = (await solanaConnection.getTokenAccountBalance(tokenAccount)).value.amount
+            let tokenAccount: PublicKey;
+            let tokenBalance: string;
 
+            const INTERVAL_TIME = 50; // Interval for checking (50ms)
+            const MAX_WAIT_TIME = 2000; // Maximum wait time (5 seconds)
+            const startTime = Date.now(); // Record the start time
+
+            while (true) {
+                // Get the current time to check against MAX_WAIT_TIME
+                const currentTime = Date.now();
+
+                // Exit the loop and throw an error if the maximum time is exceeded
+                if (currentTime - startTime > MAX_WAIT_TIME) {
+                    logger.info("Token balance is not updated within the maximum wait time");
+                    throw new Error("Token balance failed to update within the specified time.");
+                }
+
+                // Fetch token account info
+                tokenAccount = await getAssociatedTokenAddress(mint, mainKp.publicKey);
+                tokenBalance = (await solanaConnection.getTokenAccountBalance(tokenAccount)).value.amount
+
+                if (tokenBalance) {
+                    break;
+                }
+
+                // Wait for the specified interval before checking again
+                await new Promise(resolve => setTimeout(resolve, INTERVAL_TIME));
+            }
 
             if (tokenBalance) {
                 // console.log("tokenBalance", Math.floor(tokenBalance * 10 ** 5));
@@ -157,11 +186,11 @@ const sell = async (mint: PublicKey) => {
                 const latestBlockhash = await solanaConnection.getLatestBlockhash();
                 tx.recentBlockhash = latestBlockhash.blockhash
 
-                // console.log(await solanaConnection.simulateTransaction(tx), '\n')
+                console.log(await solanaConnection.simulateTransaction(tx), '\n')
 
-                // const signature = await sendAndConfirmTransaction(solanaConnection, tx, [mainKp], { skipPreflight: true, commitment: commitment });
+                const signature = await sendAndConfirmTransaction(solanaConnection, tx, [mainKp], { skipPreflight: true, commitment: commitment });
 
-                // console.log(`Sell Tokens : https://solscan.io/tx/${signature}`, '\n')
+                console.log(`Sell Tokens : https://solscan.io/tx/${signature}`, '\n')
 
 
                 const messageV0 = new TransactionMessage({

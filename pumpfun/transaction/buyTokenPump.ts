@@ -173,19 +173,19 @@ export async function buyTokenPumpfun(
         logger.info('Start send and confirm buy transaction ');
 
         const jitoPromise = executeJitoTx([versionedTx], keypair, 'confirmed', latestBlockhash);
-        const sendTransactionPromise = stakeConnection.sendTransaction(
-            transaction,
-            [keypair],
-            { skipPreflight: true, preflightCommitment: 'processed' }
-        );
+        // const sendTransactionPromise = stakeConnection.sendTransaction(
+        //     transaction,
+        //     [keypair],
+        //     { skipPreflight: true, preflightCommitment: 'processed' }
+        // );
 
-        // Run both promises in parallel
-        const [txSig, jitoResult] = await Promise.all([sendTransactionPromise, jitoPromise]);
+        // // Run both promises in parallel
+        // const [txSig, jitoResult] = await Promise.all([sendTransactionPromise, jitoPromise]);
 
         logger.info('Finish send and confirm buy transaction ');
 
-        if (jitoResult) {
-            return jitoResult
+        if (jitoPromise) {
+            return jitoPromise
         }
 
         // const txSig = await executeJitoTx1([versionedTx], keypair, "confirmed");

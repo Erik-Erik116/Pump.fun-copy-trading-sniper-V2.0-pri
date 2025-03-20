@@ -217,14 +217,14 @@ async function handleData(data: SubscribeUpdate, stream: ClientDuplexStream<Subs
 
                             let tokenAccountInfo: any;
                             const maxRetries = MAX_RETRY;
-                            const delayBetweenRetries = 20; // 20m seconds delay between retries
+                            const delayBetweenRetries = 50; // 50m seconds delay between retries
 
-                            logger.info('Start get token ata');
-                            const tokenAta = await getAssociatedTokenAddress(new PublicKey(tokenMint), keyPair.publicKey, false);
-                            logger.info('Finish get token ata');
 
                             for (let attempt = 0; attempt < maxRetries; attempt++) {
                                 try {
+                                    logger.info('Start get token ata');
+                                    const tokenAta = await getAssociatedTokenAddress(new PublicKey(tokenMint), keyPair.publicKey, false);
+                                    logger.info('Finish get token ata');
                                     tokenAccountInfo = await getAccount(solanaConnection, tokenAta);
                                     break; // Break the loop if fetching the account was successful
                                 } catch (error) {
@@ -247,15 +247,8 @@ async function handleData(data: SubscribeUpdate, stream: ClientDuplexStream<Subs
                             }
 
 
-                            // const tokenAta = await getAssociatedTokenAddress(new PublicKey(tokenMint), keyPair.publicKey);
-                            // const tokenAccountInfo = await getAccount(solanaConnection, tokenAta);
-                            // console.log("🚀 ~ tokenInfo:", tokenAccountInfo);
-                            // console.log("🚀 ~ tokenBalance:", tokenAccountInfo.amount);
-
                             if (Number(tokenAccountInfo?.amount) !== 0) {
                                 console.log("Token balance is updated successfully", '\n');
-
-
 
                                 // **Add token to the bought list**
                                 boughtTokens.push(mintAddress);
@@ -275,7 +268,7 @@ async function handleData(data: SubscribeUpdate, stream: ClientDuplexStream<Subs
                                     await sellWithJupiter(new PublicKey(tokenMint))
 
                                 }
-                                isStopped = false;
+                                // isStopped = false;
 
                                 return true; // Token balance is updated successfully
 
@@ -287,7 +280,7 @@ async function handleData(data: SubscribeUpdate, stream: ClientDuplexStream<Subs
 
                         } catch (error) {
                             console.log(error)
-                            console.log("--------------------- Pumpfun transactio fail ---------------------")
+                            console.log("--------------------- Pumpfun sell transaction fail ---------------------")
                         }
                     }
 
